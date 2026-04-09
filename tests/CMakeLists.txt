@@ -1,5 +1,5 @@
 find_package(GTest REQUIRED)
-include_directories(${GTEST_INCLUDE_DIRS})
+find_package(Eigen3 REQUIRED)
 
 add_executable(correctness_tests correctness/main.cpp)
 add_executable(performance_tests performance/main.cpp)
@@ -16,10 +16,18 @@ foreach(TARGET_NAME IN LISTS TARGETS)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
         tensor_lib
-        ${GTEST_LIBRARIES}
     )
 
-    target_compile_options(${TARGET_NAME} PUBLIC ${COMPILE_OPT})
-    target_link_options(${TARGET_NAME} PUBLIC ${LINK_OPT})
+    target_compile_options(${TARGET_NAME} PRIVATE ${COMPILE_OPT})
+    target_link_options(${TARGET_NAME} PRIVATE ${LINK_OPT})
     
 endforeach()
+
+target_include_directories(correctness_tests PRIVATE 
+    ${GTEST_INCLUDE_DIRS}
+    ${EIGEN3_INCLUDE_DIR}
+)
+
+target_link_libraries(correctness_tests PRIVATE
+    ${GTEST_LIBRARIES}
+)
