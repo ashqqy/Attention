@@ -93,6 +93,8 @@ void validate_multiply_tr_dimensions(const T& lhs, const T& rhs_tr, const T& res
 #endif
 }
 
+} // namespace attn::math::details
+
 namespace attn::ops::details {
 
 constexpr static const char* kErrSoftmaxMismatch =
@@ -108,5 +110,3 @@ inline void validate_softmax_dimensions(const T& input, const T& result) {
 }
 
 } // namespace attn::ops::details
-
-} // namespace attn::math::details
