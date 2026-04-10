@@ -10,7 +10,7 @@
 namespace attn {
 
 class Tensor {
-  public: // constructors
+  public:
     Tensor(std::size_t n_batches, std::size_t n_rows, std::size_t n_cols)
         : n_batches_(n_batches), n_rows_(n_rows), n_cols_(n_cols),
           data_(n_batches * n_rows * n_cols) {
@@ -25,7 +25,7 @@ class Tensor {
         details::validate_data_size(*this);
     }
 
-  public: // observers
+  public:
     float& operator[](std::size_t global_idx) noexcept { return data_[global_idx]; }
     const float& operator[](std::size_t global_idx) const noexcept { return data_[global_idx]; }
 
@@ -36,6 +36,9 @@ class Tensor {
     const float& operator()(std::size_t b, std::size_t i, std::size_t j) const noexcept {
         return data_[b * get_rows() * get_cols() + i * get_cols() + j];
     }
+
+    float* data() noexcept { return data_.data(); }
+    const float* data() const noexcept { return data_.data(); }
 
     std::size_t get_batch() const noexcept { return n_batches_; }
     std::size_t get_rows() const noexcept { return n_rows_; }
