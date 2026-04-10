@@ -5,6 +5,7 @@
 #endif
 
 #include "math_test.hpp"
+#include "ops_test.hpp"
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

@@ -1,5 +1,5 @@
 find_package(GTest REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(Torch REQUIRED)
 
 add_executable(correctness_tests correctness/main.cpp)
 add_executable(performance_tests performance/main.cpp)
@@ -25,9 +25,9 @@ endforeach()
 
 target_include_directories(correctness_tests PRIVATE 
     ${GTEST_INCLUDE_DIRS}
-    ${EIGEN3_INCLUDE_DIR}
 )
 
 target_link_libraries(correctness_tests PRIVATE
     ${GTEST_LIBRARIES}
+    ${TORCH_LIBRARIES}
 )

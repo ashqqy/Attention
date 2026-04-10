@@ -1,71 +1,68 @@
 #pragma once
 
-#include <Eigen/Dense>
 #include <gtest/gtest.h>
+#include <torch/torch.h>
 #include <vector>
 
 #include "common.hpp"
-#include "tensor.hpp"
 #include "math.hpp"
+#include "ops.hpp"
+#include "tensor.hpp"
 
 using namespace attn::math;
 
-using EigenMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-
-class TensorMathEigenTest : public ::testing::Test {
+class TensorMathTorchTest : public ::testing::Test {
   protected:
     void SetUp() override {
-        lhs_data.resize(M * K);
-        rhs_data.resize(K * N);
-
-        RandFill(lhs_data, -1000.0f, 1000.0f);
-        RandFill(rhs_data, -1000.0f, 1000.0f);
+        lhs_data.resize(batch_size * lhs_rows * inner_dim);
+        rhs_data.resize(batch_size * inner_dim * rhs_cols);
+        RandFill(lhs_data, -100.0f, 100.0f);
+        RandFill(rhs_data, -100.0f, 100.0f);
     }
 
-    const std::size_t M = 12288;
-    const std::size_t K = 128;
-    const std::size_t N = 12288;
+    const torch::TensorOptions options = torch::TensorOptions().dtype(torch::kFloat32);
+
+    const int64_t batch_size = 3;
+    const int64_t lhs_rows = 128;
+    const int64_t inner_dim = 64;
+    const int64_t rhs_cols = 128;
 
     std::vector<float> lhs_data;
     std::vector<float> rhs_data;
 
-    const float epsilon = 1e-4f;
+    const float epsilon = 1e-2f;
 };
 
-TEST_F(TensorMathEigenTest, MatrixTransposeMatchesEigen) {
-    Tensor rhs(1, K, N, rhs_data.begin(), rhs_data.end());
-    Tensor rhs_transposed(1, N, K);
+TEST_F(TensorMathTorchTest, MatrixTransposeMatchesTorch) {
+    Tensor rhs(batch_size, inner_dim, rhs_cols, rhs_data.begin(), rhs_data.end());
+    Tensor rhs_transposed(batch_size, rhs_cols, inner_dim);
 
-    transpose(rhs, rhs_transposed, 0);
+    transpose(rhs, rhs_transposed);
 
-    Eigen::Map<const EigenMatrix> eigen_rhs(&rhs[0], K, N);
-    EigenMatrix eigen_transposed = eigen_rhs.transpose();
+    auto t_input = torch::from_blob(rhs.data(), {batch_size, inner_dim, rhs_cols}, options);
+    auto t_expected = t_input.transpose(1, 2);
+    auto t_actual =
+        torch::from_blob(rhs_transposed.data(), {batch_size, rhs_cols, inner_dim}, options);
 
-    for (std::size_t i = 0; i < N; ++i) {
-        for (std::size_t j = 0; j < K; ++j) {
-            EXPECT_NEAR(rhs_transposed(0, i, j), eigen_transposed(i, j), epsilon);
-        }
-    }
+    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon));
 }
 
-TEST_F(TensorMathEigenTest, MatrixMultiplyTrMatchesEigen) {
-    Tensor lhs(1, M, K, lhs_data.begin(), lhs_data.end());
-    Tensor rhs(1, K, N, rhs_data.begin(), rhs_data.end());
-    
-    Tensor rhs_transposed(1, N, K);
-    Tensor result_tensor(1, M, N);
+TEST_F(TensorMathTorchTest, MatrixMultiplyTrMatchesTorch) {
+    Tensor lhs(batch_size, lhs_rows, inner_dim, lhs_data.begin(), lhs_data.end());
+    Tensor rhs(batch_size, inner_dim, rhs_cols, rhs_data.begin(), rhs_data.end());
+    Tensor result_tensor(batch_size, lhs_rows, rhs_cols);
 
-    transpose(rhs, rhs_transposed, 0);
-    multiply_tr(lhs, rhs_transposed, result_tensor, 0);
+    Tensor rhs_tr(batch_size, rhs_cols, inner_dim);
+    transpose(rhs, rhs_tr);
+    multiply_tr(lhs, rhs_tr, result_tensor);
 
-    Eigen::Map<const EigenMatrix> eigen_lhs(lhs_data.data(), M, K);
-    Eigen::Map<const EigenMatrix> eigen_rhs(rhs_data.data(), K, N);
-    
-    EigenMatrix eigen_result = eigen_lhs * eigen_rhs;
+    auto t_lhs = torch::from_blob(lhs.data(), {batch_size, lhs_rows, inner_dim}, options);
+    auto t_rhs = torch::from_blob(rhs.data(), {batch_size, inner_dim, rhs_cols}, options);
+    auto t_expected = torch::matmul(t_lhs, t_rhs);
 
-    for (std::size_t i = 0; i < M; ++i) {
-        for (std::size_t j = 0; j < N; ++j) {
-            EXPECT_NEAR(result_tensor(0, i, j), eigen_result(i, j), epsilon);
-        }
-    }
+    auto t_actual =
+        torch::from_blob(result_tensor.data(), {batch_size, lhs_rows, rhs_cols}, options);
+
+    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon));
 }
+
