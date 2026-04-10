@@ -5,9 +5,9 @@
 #include <iterator>
 #include <vector>
 
-#include "tensor_validate.hpp"
+#include "validation.hpp"
 
-namespace attention::tensor {
+namespace attn {
 
 class Tensor {
   public: // constructors
@@ -50,20 +50,4 @@ class Tensor {
     std::vector<float> data_;
 };
 
-std::ostream& operator<<(std::ostream& ostream, const Tensor& tensor) {
-    if (tensor.get_batch() > 1) {
-        ostream << "Cannot print the tensor with a batch number greater than 1\n";
-        return ostream;
-    }
-
-    for (std::size_t i = 0; i < tensor.get_rows(); ++i) {
-        for (std::size_t j = 0; j < tensor.get_cols(); ++j) {
-            ostream << tensor(0, i, j) << " ";
-        }
-        ostream << "\n";
-    }
-
-    return ostream;
-}
-
-} // namespace attention::tensor
+} // namespace attn

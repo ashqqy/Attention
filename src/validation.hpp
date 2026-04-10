@@ -3,22 +3,13 @@
 #include <cstddef>
 #include <stdexcept>
 
-namespace attention::tensor::details {
+namespace attn::details {
 
 constexpr inline const char* kErrInvalidDimensions =
     "Invalid tensor dimensions: batches is 0, but rows/cols are not.";
+
 constexpr inline const char* kErrInputDataAndDimensionsMismatch =
     "Input data size does not match tensor dimensions.";
-constexpr inline const char* kErrTransposeMismatch =
-    "Transpose dimension mismatch: result must be (cols x rows) of input.";
-constexpr inline const char* kErrBatchOutOfBounds = "Batch index is out of bounds.";
-constexpr inline const char* kErrMultiplyMismatch =
-    "Multiply dimension mismatch: lhs cols must equal rhs rows.";
-constexpr inline const char* kErrMultiplyTransposedMismatch =
-    "Multiply transposed mismatch: lhs cols must equal rhs_transposed cols.";
-constexpr inline const char* kErrMultiplyResultMismatch =
-    "Result tensor dimensions are incorrect for multiplication.";
-
 
 void validate_dimensions(std::size_t batches, std::size_t rows, std::size_t cols) {
 #ifndef NDEBUG
@@ -37,12 +28,43 @@ void validate_data_size(const T& tensor) {
 #endif
 }
 
+} // namespace attn::details
+
+namespace attn::math::details {
+
+constexpr inline const char* kErrTransposeMismatch =
+    "Transpose dimension mismatch: result must be (cols x rows) of input.";
+
+constexpr inline const char* kErrTransposeBatchMismatch =
+    "Transpose batch mismatch: input and result must have the same number of batches.";
+
+constexpr inline const char* kErrBatchOutOfBounds = "Batch index is out of bounds.";
+
+constexpr inline const char* kErrMultiplyMismatch =
+    "Multiply dimension mismatch: lhs cols must equal rhs rows.";
+
+constexpr inline const char* kErrMultiplyTransposedMismatch =
+    "Multiply transposed mismatch: lhs cols must equal rhs_transposed cols.";
+
+constexpr inline const char* kErrMultiplyResultMismatch =
+    "Result tensor dimensions are incorrect for multiplication.";
+
 template <typename T>
-void validate_transpose_dimensions(const T& input, const T& result) {
+void validate_matrix_transpose_dimensions(const T& input, const T& result) {
 #ifndef NDEBUG
     if (result.get_rows() != input.get_cols() || result.get_cols() != input.get_rows()) {
         throw std::invalid_argument(kErrTransposeMismatch);
     }
+#endif
+}
+
+template <typename T>
+void validate_transpose_dimensions(const T& input, const T& result) {
+#ifndef NDEBUG
+    if (input.get_batch() != result.get_batch()) {
+        throw std::invalid_argument(kErrTransposeBatchMismatch);
+    }
+    validate_matrix_transpose_dimensions(input, result);
 #endif
 }
 
@@ -66,7 +88,7 @@ void validate_multiply_dimensions(const T& lhs, const T& rhs, const T& result) {
 }
 
 template <typename T>
-void validate_multiply_transposed_dimensions(const T& lhs, const T& rhs_transposed,
+void validate_multiply_tr_dimensions(const T& lhs, const T& rhs_transposed,
                                              const T& result) {
 #ifndef NDEBUG
     if (lhs.get_cols() != rhs_transposed.get_cols()) {
@@ -78,4 +100,4 @@ void validate_multiply_transposed_dimensions(const T& lhs, const T& rhs_transpos
 #endif
 }
 
-} // namespace attention::tensor::details
+} // namespace attn::math::details

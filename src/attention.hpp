@@ -1,12 +1,11 @@
 #pragma once
 
+#include "math.hpp"
 #include "tensor.hpp"
-#include "tensor_math.hpp"
 
-namespace attention {
+namespace attn::ops {
 
-inline tensor::Tensor attention(const tensor::Tensor& Q, const tensor::Tensor& K,
-                                const tensor::Tensor& V) {
+inline Tensor attention(const Tensor& Q, const Tensor& K, const Tensor& V) {
 }
 
-} // namespace attention
+} // namespace attn::ops

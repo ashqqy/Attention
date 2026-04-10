@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 
 #ifndef NDEBUG
-#include "validation.hpp"
+#include "validation_test.hpp"
 #endif
 
-#include "matrix_methods.hpp"
+#include "math_test.hpp"
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

@@ -6,9 +6,9 @@
 
 #include "common.hpp"
 #include "tensor.hpp"
-#include "tensor_math.hpp"
+#include "math.hpp"
 
-using namespace attention::tensor;
+using namespace attn::math;
 
 using EigenMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
@@ -22,9 +22,9 @@ class TensorMathEigenTest : public ::testing::Test {
         RandFill(rhs_data, -1000.0f, 1000.0f);
     }
 
-    const std::size_t M = 64;
+    const std::size_t M = 12288;
     const std::size_t K = 128;
-    const std::size_t N = 32;
+    const std::size_t N = 12288;
 
     std::vector<float> lhs_data;
     std::vector<float> rhs_data;
@@ -32,11 +32,11 @@ class TensorMathEigenTest : public ::testing::Test {
     const float epsilon = 1e-4f;
 };
 
-TEST_F(TensorMathEigenTest, TransposeMatchesEigen) {
+TEST_F(TensorMathEigenTest, MatrixTransposeMatchesEigen) {
     Tensor rhs(1, K, N, rhs_data.begin(), rhs_data.end());
     Tensor rhs_transposed(1, N, K);
 
-    transpose_matrix(rhs, rhs_transposed, 0);
+    transpose(rhs, rhs_transposed, 0);
 
     Eigen::Map<const EigenMatrix> eigen_rhs(&rhs[0], K, N);
     EigenMatrix eigen_transposed = eigen_rhs.transpose();
@@ -48,18 +48,18 @@ TEST_F(TensorMathEigenTest, TransposeMatchesEigen) {
     }
 }
 
-TEST_F(TensorMathEigenTest, MultiplyTransposedMatchesEigen) {
+TEST_F(TensorMathEigenTest, MatrixMultiplyTrMatchesEigen) {
     Tensor lhs(1, M, K, lhs_data.begin(), lhs_data.end());
     Tensor rhs(1, K, N, rhs_data.begin(), rhs_data.end());
     
     Tensor rhs_transposed(1, N, K);
     Tensor result_tensor(1, M, N);
 
-    transpose_matrix(rhs, rhs_transposed, 0);
-    multiply_matrix(lhs, rhs_transposed, result_tensor, 0);
+    transpose(rhs, rhs_transposed, 0);
+    multiply_tr(lhs, rhs_transposed, result_tensor, 0);
 
-    Eigen::Map<const EigenMatrix> eigen_lhs(&lhs[0], M, K);
-    Eigen::Map<const EigenMatrix> eigen_rhs(&rhs[0], K, N);
+    Eigen::Map<const EigenMatrix> eigen_lhs(lhs_data.data(), M, K);
+    Eigen::Map<const EigenMatrix> eigen_rhs(rhs_data.data(), K, N);
     
     EigenMatrix eigen_result = eigen_lhs * eigen_rhs;
 
