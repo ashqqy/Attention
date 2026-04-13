@@ -26,7 +26,22 @@ inline void transpose_matrix(const Tensor& input, Tensor& result, std::size_t ba
     }
 }
 
-inline void multiply_tr_matrix(const Tensor& lhs, const Tensor& rhs_tr, Tensor& result,
+inline void multiply_matrix_naive(const Tensor& lhs, const Tensor& rhs, Tensor& result,
+                                  std::size_t batch_idx) noexcept {
+    for (std::size_t i = 0; i < lhs.get_rows(); ++i) {
+        for (std::size_t j = 0; j < lhs.get_cols(); ++j) {
+            float sum = 0.0f;
+            
+            for (std::size_t k = 0; k < rhs.get_cols(); ++k) {
+                sum += lhs(batch_idx, i, k) * rhs(batch_idx, k, j);
+            }
+            
+            result(batch_idx, i, j) = sum;
+        }
+    }
+}
+
+inline void multiply_matrix_tr(const Tensor& lhs, const Tensor& rhs_tr, Tensor& result,
                                std::size_t batch_idx) {
     for (std::size_t i = 0; i < lhs.get_rows(); ++i) {
         for (std::size_t j = 0; j < rhs_tr.get_rows(); ++j) {
@@ -37,6 +52,22 @@ inline void multiply_tr_matrix(const Tensor& lhs, const Tensor& rhs_tr, Tensor& 
 
             result(batch_idx, i, j) =
                 std::inner_product(lhs_row_start, lhs_row_end, rhs_col_start, 0.0f);
+        }
+    }
+}
+
+inline void multiply_matrix_cf(const Tensor& lhs, const Tensor& rhs, Tensor& result,
+                               std::size_t batch_idx) noexcept {
+    for (std::size_t i = 0; i < lhs.get_rows(); ++i) {
+        float* res_row = &result(batch_idx, i, 0);
+
+        for (std::size_t k = 0; k < lhs.get_cols(); ++k) {
+            float lhs_val = lhs(batch_idx, i, k);
+            const float* rhs_row = &rhs(batch_idx, k, 0);
+
+            for (std::size_t j = 0; j < rhs.get_cols(); ++j) {
+                res_row[j] += lhs_val * rhs_row[j];
+            }
         }
     }
 }
@@ -57,12 +88,32 @@ inline Tensor transpose(const Tensor& input) {
     return result;
 }
 
+inline void scale(Tensor& tensor, float factor) {
+    float* data_start = tensor.data();
+    float* data_end = data_start + tensor.get_n_elems();
+
+    std::transform(data_start, data_end, data_start, [factor](float val) { return val * factor; });
+}
+
+inline void multiply_naive(const Tensor& lhs, const Tensor& rhs, Tensor& result) {
+    details::validate_multiply_dimensions(lhs, rhs, result);
+
+    for (std::size_t b = 0; b < lhs.get_batch(); ++b) {
+        details::multiply_matrix_naive(lhs, rhs, result, b);
+    }
+}
+
+inline Tensor multiply_naive(const Tensor& lhs, const Tensor& rhs) {
+    Tensor result(lhs.get_batch(), lhs.get_rows(), rhs.get_cols());
+    multiply_naive(lhs, rhs, result);
+    return result;
+}
 
 inline void multiply_tr(const Tensor& lhs, const Tensor& rhs_tr, Tensor& result) {
     details::validate_multiply_tr_dimensions(lhs, rhs_tr, result);
 
     for (std::size_t b = 0; b < lhs.get_batch(); ++b) {
-        details::multiply_tr_matrix(lhs, rhs_tr, result, b);
+        details::multiply_matrix_tr(lhs, rhs_tr, result, b);
     }
 }
 
@@ -72,11 +123,19 @@ inline Tensor multiply_tr(const Tensor& lhs, const Tensor& rhs_tr) {
     return result;
 }
 
-inline void scale(Tensor& tensor, float factor) {
-    float* data_start = tensor.data();
-    float* data_end = data_start + tensor.get_n_elems();
+inline void multiply_cf(const Tensor& lhs, const Tensor& rhs, Tensor& result) {
+    details::validate_multiply_dimensions(lhs, rhs, result);
 
-    std::transform(data_start, data_end, data_start, [factor](float val) { return val * factor; });
+    for (std::size_t b = 0; b < lhs.get_batch(); ++b) {
+        details::multiply_matrix_cf(lhs, rhs, result, b);
+    }
 }
+
+inline Tensor multiply_cf(const Tensor& lhs, const Tensor& rhs) {
+    Tensor result(lhs.get_batch(), lhs.get_rows(), rhs.get_cols());
+    multiply_cf(lhs, rhs, result);
+    return result;
+}
+
 
 } // namespace attn::math
