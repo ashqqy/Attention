@@ -35,13 +35,9 @@ TEST_F(TensorMathTorchTest, MatrixTransposeMatchesTorch) {
     attn::Tensor rhs = attn::Tensor::make_view(rhs_data.data(), batch_size, inner_dim, rhs_cols);
     attn::Tensor rhs_tr = attn::math::transpose(rhs);
 
-    at::Tensor t_input =
-        torch::from_blob(rhs_data.data(), {batch_size, inner_dim, rhs_cols}, options);
-
-    at::Tensor t_actual =
-        torch::from_blob(rhs_tr.data(), {batch_size, rhs_cols, inner_dim}, options);
-
-    at::Tensor t_expected = t_input.transpose(1, 2);
+    auto t_input = torch::from_blob(rhs_data.data(), {batch_size, inner_dim, rhs_cols}, options);
+    auto t_actual = torch::from_blob(rhs_tr.data(), {batch_size, rhs_cols, inner_dim}, options);
+    auto t_expected = t_input.transpose(1, 2);
 
     EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
 }
@@ -60,7 +56,7 @@ TEST_F(TensorMathTorchTest, MatrixMultiplyTrMatchesTorch) {
     auto t_actual = torch::from_blob(result.data(), {batch_size, lhs_rows, rhs_cols}, options);
 
     float max_diff = torch::abs(t_actual - t_expected).max().item<float>();
-    std::cout << "Max absolute error: " << max_diff << std::endl;
+    std::cout << "[ MULTIPLY DIFF ] Max absolute error: " << max_diff << std::endl;
 
     EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
 }

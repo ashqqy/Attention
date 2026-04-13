@@ -41,7 +41,7 @@ class TensorOpsTorchTest : public ::testing::Test {
 };
 
 TEST_F(TensorOpsTorchTest, SoftmaxMatchesTorch) {
-    Tensor input(batch_size, seq_len_q, d_k, q_data.begin(), q_data.end());
+    Tensor input = Tensor::make_view(q_data.data(), batch_size, seq_len_q, d_k);
 
     auto t_input = torch::from_blob(input.data(), {batch_size, seq_len_q, d_k}, options);
     auto t_expected = torch::softmax(t_input, -1);
@@ -56,9 +56,9 @@ TEST_F(TensorOpsTorchTest, SoftmaxMatchesTorch) {
 }
 
 TEST_F(TensorOpsTorchTest, AttentionMatchesTorch1) {
-    Tensor Q(batch_size, seq_len_q, d_k, q_data.begin(), q_data.end());
-    Tensor K(batch_size, seq_len_k, d_k, k_data.begin(), k_data.end());
-    Tensor V(batch_size, seq_len_k, d_v, v_data.begin(), v_data.end());
+    Tensor Q = Tensor::make_view(q_data.data(), batch_size, seq_len_q, d_k);
+    Tensor K = Tensor::make_view(k_data.data(), batch_size, seq_len_k, d_k);
+    Tensor V = Tensor::make_view(v_data.data(), batch_size, seq_len_k, d_v);
 
     Tensor actual_result = attention(Q, K, V);
 
@@ -66,9 +66,7 @@ TEST_F(TensorOpsTorchTest, AttentionMatchesTorch1) {
     auto t_K = torch::from_blob(k_data.data(), {batch_size, seq_len_k, d_k}, options);
     auto t_V = torch::from_blob(v_data.data(), {batch_size, seq_len_k, d_v}, options);
 
-    auto t_scores = torch::matmul(t_Q, t_K.transpose(-2, -1)) / std::sqrt(static_cast<float>(d_k));
-    auto t_probs = torch::softmax(t_scores, -1);
-    auto t_expected = torch::matmul(t_probs, t_V);
+    auto t_expected = torch::scaled_dot_product_attention(t_Q, t_K, t_V);
 
     auto t_actual = torch::from_blob(actual_result.data(), {batch_size, seq_len_q, d_v}, options);
 
