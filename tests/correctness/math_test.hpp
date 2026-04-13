@@ -9,15 +9,13 @@
 #include "ops.hpp"
 #include "tensor.hpp"
 
-using namespace attn::math;
-
 class TensorMathTorchTest : public ::testing::Test {
   protected:
     void SetUp() override {
         lhs_data.resize(batch_size * lhs_rows * inner_dim);
         rhs_data.resize(batch_size * inner_dim * rhs_cols);
-        RandFill(lhs_data, -100.0f, 100.0f);
-        RandFill(rhs_data, -100.0f, 100.0f);
+        RandFill(lhs_data, -1.0f, 1.0f);
+        RandFill(rhs_data, -1.0f, 1.0f);
     }
 
     const torch::TensorOptions options = torch::TensorOptions().dtype(torch::kFloat32);
@@ -30,39 +28,39 @@ class TensorMathTorchTest : public ::testing::Test {
     std::vector<float> lhs_data;
     std::vector<float> rhs_data;
 
-    const float epsilon = 1e-2f;
+    const float epsilon = 1e-3f;
 };
 
 TEST_F(TensorMathTorchTest, MatrixTransposeMatchesTorch) {
-    Tensor rhs(batch_size, inner_dim, rhs_cols, rhs_data.begin(), rhs_data.end());
-    Tensor rhs_transposed(batch_size, rhs_cols, inner_dim);
+    attn::Tensor rhs = attn::Tensor::make_view(rhs_data.data(), batch_size, inner_dim, rhs_cols);
+    attn::Tensor rhs_tr = attn::math::transpose(rhs);
 
-    transpose(rhs, rhs_transposed);
+    at::Tensor t_input =
+        torch::from_blob(rhs_data.data(), {batch_size, inner_dim, rhs_cols}, options);
 
-    auto t_input = torch::from_blob(rhs.data(), {batch_size, inner_dim, rhs_cols}, options);
-    auto t_expected = t_input.transpose(1, 2);
-    auto t_actual =
-        torch::from_blob(rhs_transposed.data(), {batch_size, rhs_cols, inner_dim}, options);
+    at::Tensor t_actual =
+        torch::from_blob(rhs_tr.data(), {batch_size, rhs_cols, inner_dim}, options);
 
-    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon));
+    at::Tensor t_expected = t_input.transpose(1, 2);
+
+    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
 }
 
 TEST_F(TensorMathTorchTest, MatrixMultiplyTrMatchesTorch) {
-    Tensor lhs(batch_size, lhs_rows, inner_dim, lhs_data.begin(), lhs_data.end());
-    Tensor rhs(batch_size, inner_dim, rhs_cols, rhs_data.begin(), rhs_data.end());
-    Tensor result_tensor(batch_size, lhs_rows, rhs_cols);
+    attn::Tensor lhs = attn::Tensor::make_view(lhs_data.data(), batch_size, lhs_rows, inner_dim);
+    attn::Tensor rhs = attn::Tensor::make_view(rhs_data.data(), batch_size, inner_dim, rhs_cols);
 
-    Tensor rhs_tr(batch_size, rhs_cols, inner_dim);
-    transpose(rhs, rhs_tr);
-    multiply_tr(lhs, rhs_tr, result_tensor);
+    attn::Tensor rhs_tr = attn::math::transpose(rhs);
+    attn::Tensor result = attn::math::multiply_tr(lhs, rhs_tr);
 
     auto t_lhs = torch::from_blob(lhs.data(), {batch_size, lhs_rows, inner_dim}, options);
     auto t_rhs = torch::from_blob(rhs.data(), {batch_size, inner_dim, rhs_cols}, options);
     auto t_expected = torch::matmul(t_lhs, t_rhs);
 
-    auto t_actual =
-        torch::from_blob(result_tensor.data(), {batch_size, lhs_rows, rhs_cols}, options);
+    auto t_actual = torch::from_blob(result.data(), {batch_size, lhs_rows, rhs_cols}, options);
 
-    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon));
+    float max_diff = torch::abs(t_actual - t_expected).max().item<float>();
+    std::cout << "Max absolute error: " << max_diff << std::endl;
+
+    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
 }
-

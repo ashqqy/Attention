@@ -9,42 +9,71 @@
 #include "ops.hpp"
 #include "tensor.hpp"
 
+using namespace attn;
 using namespace attn::ops;
 
 class TensorOpsTorchTest : public ::testing::Test {
   protected:
     void SetUp() override {
-        lhs_data.resize(batch_size * lhs_rows * inner_dim);
-        rhs_data.resize(batch_size * inner_dim * rhs_cols);
-        RandFill(lhs_data, -100.0f, 100.0f);
-        RandFill(rhs_data, -100.0f, 100.0f);
+        q_data.resize(batch_size * seq_len_q * d_k);
+        k_data.resize(batch_size * seq_len_k * d_k);
+        v_data.resize(batch_size * seq_len_k * d_v);
+
+        RandFill(q_data, -1.0f, 1.0f);
+        RandFill(k_data, -1.0f, 1.0f);
+        RandFill(v_data, -1.0f, 1.0f);
     }
 
     const torch::TensorOptions options = torch::TensorOptions().dtype(torch::kFloat32);
 
     const int64_t batch_size = 3;
-    const int64_t lhs_rows = 128;
-    const int64_t inner_dim = 64;
-    const int64_t rhs_cols = 128;
+    const int64_t seq_len_q = 128;
+    const int64_t seq_len_k = 128;
 
-    std::vector<float> lhs_data;
-    std::vector<float> rhs_data;
+    const int64_t d_k = 64;
+    const int64_t d_v = 128;
+
+    std::vector<float> q_data;
+    std::vector<float> k_data;
+    std::vector<float> v_data;
 
     const float epsilon = 1e-6f;
 };
 
 TEST_F(TensorOpsTorchTest, SoftmaxMatchesTorch) {
-    Tensor input(batch_size, lhs_rows, inner_dim, lhs_data.begin(), lhs_data.end());
-    Tensor result(batch_size, lhs_rows, inner_dim);
+    Tensor input(batch_size, seq_len_q, d_k, q_data.begin(), q_data.end());
 
-    softmax(input, result);
-
-    auto t_input = torch::from_blob(input.data(), {batch_size, lhs_rows, inner_dim}, options);
+    auto t_input = torch::from_blob(input.data(), {batch_size, seq_len_q, d_k}, options);
     auto t_expected = torch::softmax(t_input, -1);
-    auto t_actual = torch::from_blob(result.data(), {batch_size, lhs_rows, inner_dim}, options);
 
-    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon));
+    softmax(input);
+
+    EXPECT_TRUE(torch::allclose(t_input, t_expected, epsilon, epsilon));
+
+    auto sums = t_input.sum(-1);
+    EXPECT_TRUE(torch::allclose(sums, torch::ones_like(sums), epsilon, epsilon))
+        << "Softmax probabilities do not sum to 1.0!";
 }
 
-// auto sums = t_actual.sum(-1);
-// EXPECT_TRUE(torch::allclose(sums, torch::ones_like(sums), 1e-6f));
+TEST_F(TensorOpsTorchTest, AttentionMatchesTorch1) {
+    Tensor Q(batch_size, seq_len_q, d_k, q_data.begin(), q_data.end());
+    Tensor K(batch_size, seq_len_k, d_k, k_data.begin(), k_data.end());
+    Tensor V(batch_size, seq_len_k, d_v, v_data.begin(), v_data.end());
+
+    Tensor actual_result = attention(Q, K, V);
+
+    auto t_Q = torch::from_blob(q_data.data(), {batch_size, seq_len_q, d_k}, options);
+    auto t_K = torch::from_blob(k_data.data(), {batch_size, seq_len_k, d_k}, options);
+    auto t_V = torch::from_blob(v_data.data(), {batch_size, seq_len_k, d_v}, options);
+
+    auto t_scores = torch::matmul(t_Q, t_K.transpose(-2, -1)) / std::sqrt(static_cast<float>(d_k));
+    auto t_probs = torch::softmax(t_scores, -1);
+    auto t_expected = torch::matmul(t_probs, t_V);
+
+    auto t_actual = torch::from_blob(actual_result.data(), {batch_size, seq_len_q, d_v}, options);
+
+    float max_diff = torch::abs(t_actual - t_expected).max().item<float>();
+    std::cout << "[ ATTENTION DIFF ] Max absolute error: " << max_diff << std::endl;
+
+    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
+}
