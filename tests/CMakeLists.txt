@@ -16,6 +16,7 @@ foreach(TARGET_NAME IN LISTS TARGETS)
 
     target_link_libraries(${TARGET_NAME} PRIVATE
         tensor_lib
+        ${TORCH_LIBRARIES}
     )
 
     target_compile_options(${TARGET_NAME} PRIVATE ${COMPILE_OPT})
@@ -29,5 +30,4 @@ target_include_directories(correctness_tests PRIVATE
 
 target_link_libraries(correctness_tests PRIVATE
     ${GTEST_LIBRARIES}
-    ${TORCH_LIBRARIES}
 )

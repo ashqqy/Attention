@@ -14,8 +14,8 @@ class TensorMathTorchTest : public ::testing::Test {
     void SetUp() override {
         lhs_data.resize(batch_size * lhs_rows * inner_dim);
         rhs_data.resize(batch_size * inner_dim * rhs_cols);
-        RandFill(lhs_data, -1.0f, 1.0f);
-        RandFill(rhs_data, -1.0f, 1.0f);
+        bench::RandFill(lhs_data, -1.0f, 1.0f);
+        bench::RandFill(rhs_data, -1.0f, 1.0f);
     }
 
     const torch::TensorOptions options = torch::TensorOptions().dtype(torch::kFloat32);
@@ -42,21 +42,25 @@ TEST_F(TensorMathTorchTest, MatrixTransposeMatchesTorch) {
     EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
 }
 
-TEST_F(TensorMathTorchTest, MatrixMultiplyTrMatchesTorch) {
+TEST_F(TensorMathTorchTest, MatrixMultiplyMatchesTorch) {
     attn::Tensor lhs = attn::Tensor::make_view(lhs_data.data(), batch_size, lhs_rows, inner_dim);
     attn::Tensor rhs = attn::Tensor::make_view(rhs_data.data(), batch_size, inner_dim, rhs_cols);
-
     attn::Tensor rhs_tr = attn::math::transpose(rhs);
-    attn::Tensor result = attn::math::multiply_tr(lhs, rhs_tr);
+
+    attn::Tensor result_naive = attn::math::multiply_naive(lhs, rhs);
+    attn::Tensor result_tr = attn::math::multiply_tr(lhs, rhs_tr);
+    attn::Tensor result_cf = attn::math::multiply_cf(lhs, rhs);
 
     auto t_lhs = torch::from_blob(lhs.data(), {batch_size, lhs_rows, inner_dim}, options);
     auto t_rhs = torch::from_blob(rhs.data(), {batch_size, inner_dim, rhs_cols}, options);
     auto t_expected = torch::matmul(t_lhs, t_rhs);
 
-    auto t_actual = torch::from_blob(result.data(), {batch_size, lhs_rows, rhs_cols}, options);
+    auto t_actual_naive = torch::from_blob(result_naive.data(), {batch_size, lhs_rows, rhs_cols}, options);
+    auto t_actual_tr = torch::from_blob(result_tr.data(), {batch_size, lhs_rows, rhs_cols}, options);
+    auto t_actual_cf = torch::from_blob(result_cf.data(), {batch_size, lhs_rows, rhs_cols}, options);
 
-    float max_diff = torch::abs(t_actual - t_expected).max().item<float>();
-    std::cout << "[ MULTIPLY DIFF ] Max absolute error: " << max_diff << std::endl;
-
-    EXPECT_TRUE(torch::allclose(t_actual, t_expected, epsilon, epsilon));
+    EXPECT_TRUE(torch::allclose(t_actual_naive, t_expected, epsilon, epsilon));
+    EXPECT_TRUE(torch::allclose(t_actual_tr, t_expected, epsilon, epsilon));
+    EXPECT_TRUE(torch::allclose(t_actual_cf, t_expected, epsilon, epsilon));
 }
+

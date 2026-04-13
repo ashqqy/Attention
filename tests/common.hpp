@@ -1,8 +1,12 @@
 #pragma once
 
+#include <concepts>
 #include <random>
 #include <vector>
-#include <concepts>
+#include <functional>
+#include <chrono>
+
+namespace bench {
 
 template <std::floating_point T = float>
 T RandValue(T min_val, T max_val) {
@@ -43,3 +47,5 @@ double profile_function(std::size_t repeats, std::size_t warmup_repeats, F&& fun
 
     return total_time / repeats;
 }
+
+} // namespace bench

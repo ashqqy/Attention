@@ -19,9 +19,9 @@ class TensorOpsTorchTest : public ::testing::Test {
         k_data.resize(batch_size * seq_len_k * d_k);
         v_data.resize(batch_size * seq_len_k * d_v);
 
-        RandFill(q_data, -1.0f, 1.0f);
-        RandFill(k_data, -1.0f, 1.0f);
-        RandFill(v_data, -1.0f, 1.0f);
+        bench::RandFill(q_data, -1.0f, 1.0f);
+        bench::RandFill(k_data, -1.0f, 1.0f);
+        bench::RandFill(v_data, -1.0f, 1.0f);
     }
 
     const torch::TensorOptions options = torch::TensorOptions().dtype(torch::kFloat32);
