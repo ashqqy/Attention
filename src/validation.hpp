@@ -97,16 +97,28 @@ void validate_multiply_tr_dimensions(const T& lhs, const T& rhs_tr, const T& res
 
 namespace attn::ops::details {
 
-constexpr static const char* kErrSoftmaxMismatch =
-    "Softmax dimension mismatch: input and result tensors must have "
-    "identical dimensions.";
+constexpr inline const char* kErrAttentionBatchMismatch =
+    "Attention batch mismatch: queries, keys, and values must have the same number of batches.";
+constexpr inline const char* kErrAttentionHeadDimMismatch =
+    "Attention dimension mismatch: queries and keys must have the same column dimension (d_k).";
+constexpr inline const char* kErrAttentionSeqLenMismatch =
+    "Attention dimension mismatch: keys and values must have the same row dimension.";
 
 template <typename T>
-inline void validate_softmax_dimensions(const T& input, const T& result) {
-    if (input.get_batch() != result.get_batch() || input.get_rows() != result.get_rows() ||
-        input.get_cols() != result.get_cols()) {
-        throw std::invalid_argument(kErrSoftmaxMismatch);
+inline void validate_attention_dimensions(const T& queries, const T& keys, const T& values) {
+#ifndef NDEBUG
+    if (queries.get_batch() != keys.get_batch() || queries.get_batch() != values.get_batch()) {
+        throw std::invalid_argument(kErrAttentionBatchMismatch);
     }
+
+    if (queries.get_cols() != keys.get_cols()) {
+        throw std::invalid_argument(kErrAttentionHeadDimMismatch);
+    }
+
+    if (keys.get_rows() != values.get_rows()) {
+        throw std::invalid_argument(kErrAttentionSeqLenMismatch);
+    }
+#endif
 }
 
 } // namespace attn::ops::details

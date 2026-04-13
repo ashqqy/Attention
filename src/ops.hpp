@@ -43,7 +43,7 @@ inline void softmax(Tensor& input) {
 }
 
 inline Tensor attention(const Tensor& queries, const Tensor& keys, const Tensor& values) {
-    // details::validate_();
+    details::validate_attention_dimensions(queries, keys, values);
 
     Tensor scores = math::multiply_tr(queries, keys);
 
