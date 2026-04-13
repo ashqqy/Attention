@@ -20,10 +20,10 @@ inline void validate_dimensions(std::size_t batches, std::size_t rows, std::size
 #endif
 }
 
-template <typename T>
-void validate_data_size(const T& tensor) {
+template <typename T, std::forward_iterator FwdIter>
+void validate_data_size(const T& tensor, FwdIter begin, FwdIter end) {
 #ifndef NDEBUG
-    if (tensor.get_n_elems() != tensor.get_batch() * tensor.get_rows() * tensor.get_cols()) {
+    if (tensor.get_n_elems() != std::distance(begin, end)) {
         throw std::invalid_argument(kErrInputDataAndDimensionsMismatch);
     }
 #endif

@@ -51,6 +51,12 @@ inline void transpose(const Tensor& input, Tensor& result) {
     }
 }
 
+inline Tensor transpose(const Tensor& input) {
+    Tensor result(input.get_batch(), input.get_cols(), input.get_rows());
+    transpose(input, result);
+    return result;
+}
+
 
 inline void multiply_tr(const Tensor& lhs, const Tensor& rhs_tr, Tensor& result) {
     details::validate_multiply_tr_dimensions(lhs, rhs_tr, result);
@@ -58,6 +64,12 @@ inline void multiply_tr(const Tensor& lhs, const Tensor& rhs_tr, Tensor& result)
     for (std::size_t b = 0; b < lhs.get_batch(); ++b) {
         details::multiply_tr_matrix(lhs, rhs_tr, result, b);
     }
+}
+
+inline Tensor multiply_tr(const Tensor& lhs, const Tensor& rhs_tr) {
+    Tensor result(lhs.get_batch(), lhs.get_rows(), rhs_tr.get_rows());
+    multiply_tr(lhs, rhs_tr, result);
+    return result;
 }
 
 inline void scale(Tensor& tensor, float factor) {
